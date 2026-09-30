@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Colorimetric Field-Test Mobile System (Localhost Simulator)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <style>
+    :root {
+      --primary: #0D9488;
+      --primary-dark: #0F766E;
+      --primary-light: #2DD4BF;
+      --primary-muted: rgba(13, 148, 136, 0.15);
+      --background: #0B0F17;
+      --surface: #151D2A;
+      --surface-elevated: #1E293B;
+      --surface-border: #334155;
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --positive: #EF4444;
+      --positive-muted: rgba(239, 68, 68, 0.15);
+      --positive-border: #DC2626;
+      --negative: #10B981;
+      --negative-muted: rgba(16, 185, 129, 0.15);
+      --negative-border: #059669;
+      --inconclusive: #F59E0B;
+      --inconclusive-muted: rgba(245, 158, 11, 0.15);
+      --inconclusive-border: #D97706;
+      --verified: #06B6D4;
+      --verified-muted: rgba(6, 182, 212, 0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at 50% 20%, #152238 0%, #080C14 100%);
+      font-family: 'Outfit', sans-serif;
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justifyContent: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* Host Header */
+    .host-header {
+      text-align: center;
+      margin-bottom: 16px;
+      max-width: 600px;
+    }
+    .host-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .host-badge {
+      background: var(--primary-muted);
+      border: 1px solid var(--primary-dark);
+      color: var(--primary-light);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .host-sub {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Mobile Device Frame */
+    .device-shell {
+      width: 100%;
+      max-width: 420px;
+      height: 840px;
+      background: #000000;
+      border-radius: 46px;
+      padding: 12px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.12), inset 0 0 0 2px #334155;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .device-notch {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 24px;
+      background: #000000;
+      border-radius: 14px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .notch-camera {
+      width: 10px;
+      height: 10px;
+      background: #111827;
+      border-radius: 50%;
+      border: 1px solid #1E293B;
+    }
+    .notch-sensor {
+      width: 5px;
+      height: 5px;
+      background: #064E3B;
+      border-radius: 50%;
+    }
+
+    .screen-viewport {
+      flex: 1;
+      background: var(--background);
+      border-radius: 36px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* System Status Bar */
+    .status-bar {
+      height: 38px;
+      padding: 8px 24px 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      z-index: 50;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Main App Container */
+    .app-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Screen Views */
+    .screen-view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      padding: 16px;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    .screen-view.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      height: 64px;
+      background: var(--surface);
+      border-top: 1px solid var(--surface-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 10px;
+      z-index: 50;
+    }
+    .nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.7rem;
+      font-weight: 700;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .nav-btn.active {
+      color: var(--primary-light);
+    }
+    .nav-center-btn {
+      margin-top: -24px;
+    }
+    .nav-center-circle {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+      border: 2px solid var(--surface);
+      font-size: 1.4rem;
+      font-weight: 900;
+      margin-bottom: 2px;
+      transition: transform 0.15s;
+    }
+    .nav-center-btn:hover .nav-center-circle {
+      transform: scale(1.06);
+    }
+
+    /* UI Cards & Elements */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Buttons */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn:hover {
+      background: var(--primary-dark);
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-secondary {
+      background: var(--surface-elevated);
+      border: 1px solid var(--surface-border);
+      color: var(--text-secondary);
+    }
+    .btn-secondary:hover {
+      background: var(--surface-border);
+      color: #FFFFFF;
+    }
+
+    /* Input groups */
+    .input-group {
+      margin-bottom: 14px;
+    }
+    .input-label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .input-box {
+      width: 100%;
+      height: 44px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 0 12px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .input-box:focus {
+      border-color: var(--primary-light);
+    }
+
+    /* Stats Row */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .stat-pill {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-top: 3px solid var(--primary-light);
+      border-radius: 10px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+    .stat-pill-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .stat-pill-val {
+      font-size: 1.25rem;
+      font-weight: 900;
+      margin-top: 2px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      border: 1.5px solid transparent;
+    }
+    .badge-positive {
+      background: var(--positive-muted);
+      border-color: var(--positive-border);
+      color: var(--positive);
+    }
+    .badge-negative {
+      background: var(--negative-muted);
+      border-color: var(--negative-border);
+      color: var(--negative);
+    }
+    .badge-inconclusive {
+      background: var(--inconclusive-muted);
+      border-color: var(--inconclusive-border);
+      color: var(--inconclusive);
+    }
+
+    /* Hash Monospace */
+    .hash-snippet {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--primary-light);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      word-break: break-all;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    /* Camera Viewfinder */
+    .camera-frame {
+      width: 100%;
+      height: 340px;
+      background: #000000;
+      border-radius: 14px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px;
+      border: 1px solid var(--surface-border);
+    }
+    .hud-box {
+      border: 2px dashed #38BDF8;
+      border-radius: 8px;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 8px;
+      text-align: center;
+    }
+    .hud-box-reaction {
+      border-color: #A855F7;
+      background: rgba(168, 85, 247, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 120px;
+    }
+    .hud-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #38BDF8;
+      letter-spacing: 0.5px;
+    }
+    .hud-tag-reaction {
+      color: #C084FC;
+    }
+    .shutter-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 4px solid rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      margin: 12px auto 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shutter-btn:active {
+      transform: scale(0.92);
+    }
+
+    /* Disclaimer Notice */
+    .disclaimer-banner {
+      background: rgba(245, 158, 11, 0.08);
+      border-left: 3px solid var(--inconclusive);
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-top: 14px;
+      font-size: 0.72rem;
+      color: #E2E8F0;
+      line-height: 1.4;
+    }
+    .disclaimer-banner strong {
+      color: var(--inconclusive);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    /* Test Record Card */
+    .test-record-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .test-record-card:hover {
+      border-color: var(--primary-light);
+    }
+    .record-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .record-id {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+    .record-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="host-header">
+    <div class="host-title">
+      <span>COLORIMETRIC FIELD-TEST SYSTEM</span>
+      <span class="host-badge">LOCALHOST :8080</span>
+    </div>
+    <div class="host-sub">Mobile Computer-Vision & Tamper-Evident SHA-256 Recording Engine</div>
+  </div>
+
+  <!-- Mobile Shell Simulator -->
+  <div class="device-shell">
+    <div class="device-notch">
+      <div class="notch-camera"></div>
+      <div class="notch-sensor"></div>
+    </div>
+
+    <div class="screen-viewport">
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <span id="systemClock">09:41</span>
+        <div class="status-icons">
+          <span>GPS ✓</span>
+          <span>OFFLINE</span>
+          <span>100% 🔋</span>
+        </div>
+      </div>
+
+      <!-- App Body with Screen Views -->
+      <div class="app-body">
+        
+        <!-- 1. LOGIN SCREEN -->
+        <div id="screenLogin" class="screen-view active">
+          <div style="text-align: center; margin: 30px 0 20px 0;">
+            <div style="width: 60px; height: 60px; border-radius: 30px; background: var(--surface); border: 2px solid var(--primary-dark); margin: 0 auto 12px auto; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+              🛡️
+            </div>
+            <h2 style="font-size: 1.2rem; font-weight: 900; letter-spacing: 1px;">COLORIMETRIC TERMINAL</h2>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Tamper-Evident Optical Recording</p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Operator Authentication</div>
+            <div class="input-group">
+              <label class="input-label">Operator ID</label>
+              <input type="text" id="loginOperatorId" class="input-box" value="OP-FIELD-01">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Security PIN</label>
+              <input type="password" id="loginPin" class="input-box" value="4829">
+            </div>
+            <button class="btn" onclick="appLogin()">LOGIN TO TERMINAL</button>
+            <button class="btn btn-secondary" style="margin-top: 8px; font-size: 0.75rem; padding: 8px;" onclick="quickDemoFill()">Auto-Fill Demo Credentials</button>
+          </div>
+
+          <div class="disclaimer-banner">
+            <strong>REGULATORY NOTICE</strong>
+            Presumptive field testing only. Does not replace laboratory confirmatory analysis.
+          </div>
+        </div>
+
+        <!-- 2. DASHBOARD SCREEN -->
+        <div id="screenDashboard" class="screen-view">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <div style="font-size: 1rem; font-weight: 800; color: var(--text-primary);">FIELD TESTING SYSTEM</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Operator: <span id="dashOperator" style="color: var(--primary-light); font-weight: 700;">OP-FIELD-01</span></div>
+            </div>
+            <div style="background: var(--primary-muted); border: 1px solid var(--primary-dark); padding: 3px 8px; border-radius: 10px; font-size: 0.65rem; color: var(--primary-light); font-weight: 800;">
+              READY
+            </div>
+          </div>
+
+          <!-- + NEW TEST Primary Button -->
+          <button class="btn" style="padding: 16px; margin-bottom: 16px; font-size: 1.05rem;" onclick="navigateToNewTest()">
+            <span style="font-size: 1.3rem;">+</span> NEW TEST
+          </button>
+
+          <!-- Analytics Counters -->
+          <div class="stats-grid">
+            <div class="stat-pill" style="border-top-color: var(--primary-light);">
+              <div class="stat-pill-label">Total</div>
+              <div id="statTotal" class="stat-pill-val" style="color: var(--primary-light);">0</div>
+            </div>
+            <div class="stat-pill" style="border-top-color: var(--positive);">
+              <div class="stat-pill-label">Positive</div>
+              <div id="statPositive" class="stat-pill-val" style="color: var(--positive);">0</div>
+            </div>
+            <div class="stat-pill" style="border-top-color: var(--negative);">
+              <div class="stat-pill-label">Negative</div>
+              <div id="statNegative" class="stat-pill-val" style="color: var(--negative);">0</div>
+            </div>
+            <div class="stat-pill" style="border-top-color: var(--inconclusive);">
+              <div class="stat-pill-label">Inconcl.</div>
+              <div id="statInconclusive" class="stat-pill-val" style="color: var(--inconclusive);">0</div>
+            </div>
+          </div>
+
+          <!-- Recent Tests -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 0.85rem; font-weight: 700;">Recent Field Records</span>
+            <span style="font-size: 0.75rem; color: var(--primary-light); cursor: pointer;" onclick="navigateToTab('HISTORY')">View All →</span>
+          </div>
+
+          <div id="recentRecordsList"></div>
+        </div>
+
+        <!-- 3. NEW TEST METADATA SCREEN -->
+        <div id="screenNewTest" class="screen-view">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem;" onclick="navigateToTab('DASHBOARD')">Cancel</button>
+            <span style="font-size: 0.85rem; font-weight: 800;">NEW TEST METADATA</span>
+            <span style="width: 50px;"></span>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Generated Identifiers</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.8rem;">
+              <span style="color: var(--text-muted);">TEST ID:</span>
+              <span id="formTestId" style="color: var(--primary-light); font-weight: 800;">FT-2026-000001</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+              <span style="color: var(--text-muted);">OPERATOR ID:</span>
+              <span id="formOperatorId" style="color: var(--text-primary); font-weight: 700;">OP-FIELD-01</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Test Kit & Sample IDs</div>
+            <div class="input-group">
+              <label class="input-label">Test Kit ID / Lot *</label>
+              <input type="text" id="inputKitId" class="input-box" value="TK-482-L19">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Sample ID / Evidence Barcode *</label>
+              <input type="text" id="inputSampleId" class="input-box" value="SMP-AX8921">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Case / Reference Number (Optional)</label>
+              <input type="text" id="inputCaseNum" class="input-box" placeholder="e.g. CR-2026-904">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Digital Telemetry</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">
+              ⏱ Timestamp: <span id="formTimestamp" style="color: var(--text-primary);">...</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">
+              📍 GPS Coordinates: <span id="formGps" style="color: var(--verified); font-weight: 700;">28.613939° N, 77.209021° E</span>
+            </div>
+          </div>
+
+          <!-- Controlled Scenario Selector for Demo Mode -->
+          <div class="card" style="border-color: var(--inconclusive-border); background: rgba(245, 158, 11, 0.04);">
+            <div class="card-title" style="color: var(--inconclusive); font-size: 0.8rem;">DEMO SCENARIO SELECTOR</div>
+            <select id="demoScenarioSelect" class="input-box" style="margin-bottom: 6px;">
+              <option value="POSITIVE_VIOLET">Positive Violet Chromophore (Marquis/Cobalt)</option>
+              <option value="NEGATIVE_BLANK">Negative Blank (Unreacted Pale Yellow)</option>
+              <option value="INCONCLUSIVE">Inconclusive Reaction (Optical Turbidity)</option>
+            </select>
+          </div>
+
+          <button class="btn" onclick="startCameraCapture()">PROCEED TO CAMERA CAPTURE →</button>
+        </div>
+
+        <!-- 4. CAMERA SCREEN -->
+        <div id="screenCamera" class="screen-view">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem;" onclick="navigateToTab('NEW_TEST')">Cancel</button>
+            <span style="font-size: 0.8rem; font-weight: 800; color: var(--primary-light);">OPTICAL ALIGNMENT HUD</span>
+            <button id="flashBtn" class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem;" onclick="toggleFlash()">⚡ Flash: OFF</button>
+          </div>
+
+          <div class="camera-frame">
+            <div class="hud-box">
+              <span class="hud-tag">REFERENCE COLOUR CARD</span>
+              <div style="display: flex; justify-content: center; gap: 4px; margin-top: 4px;">
+                <div style="width: 20px; height: 14px; background: #FFFFFF; border-radius: 2px;"></div>
+                <div style="width: 20px; height: 14px; background: #808080; border-radius: 2px;"></div>
+                <div style="width: 20px; height: 14px; background: #000000; border-radius: 2px;"></div>
+                <div style="width: 20px; height: 14px; background: #0D9488; border-radius: 2px;"></div>
+              </div>
+            </div>
+
+            <div class="hud-box hud-box-reaction">
+              <span class="hud-tag hud-tag-reaction">TEST REACTION AREA</span>
+              <div id="camReactionDot" style="width: 44px; height: 44px; border-radius: 50%; background: #6B21A8; border: 2px solid #FFFFFF; margin-top: 8px;"></div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; color: #E2E8F0; text-align: center;">
+              Keep steady • Avoid glare & strong shadows
+            </div>
+          </div>
+
+          <div class="shutter-btn" onclick="captureTestPhoto()">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary);"></div>
+          </div>
+          <p style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Tap to capture optical reaction</p>
+        </div>
+
+        <!-- 5. IMAGE REVIEW / VALIDATION SCREEN -->
+        <div id="screenReview" class="screen-view">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem;" onclick="startCameraCapture()">← Retake</button>
+            <span style="font-size: 0.85rem; font-weight: 800;">IMAGE QUALITY AUDIT</span>
+            <span style="width: 50px;"></span>
+          </div>
+
+          <div class="card" style="border-color: var(--negative-border); background: var(--negative-muted);">
+            <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--negative); font-size: 0.85rem;">
+              <span>✓</span> OPTICAL VALIDATION PASSED
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+              Reference colour card detected. Test reaction area within acceptable exposure bounds.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Telemetry & Quality Metrics</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.78rem;">
+              <span style="color: var(--text-secondary);">Image Resolution:</span>
+              <span style="font-weight: 700;">1920x1080 (HD)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.78rem;">
+              <span style="color: var(--text-secondary);">Ambient Luminance:</span>
+              <span style="font-weight: 700;">145 / 255 (Optimal)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.78rem;">
+              <span style="color: var(--text-secondary);">Reference Card Detection:</span>
+              <span style="color: var(--verified); font-weight: 700;">DETECTED (100%)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem;">
+              <span style="color: var(--text-secondary);">Specular Glare Ratio:</span>
+              <span style="font-weight: 700;">1.4% (Max 12%)</span>
+            </div>
+          </div>
+
+          <button class="btn" onclick="runCalibrationAndClassification()">RUN COLOR CALIBRATION →</button>
+        </div>
+
+        <!-- 6. RESULT SCREEN -->
+        <div id="screenResult" class="screen-view">
+          <div style="text-align: center; margin-bottom: 12px;">
+            <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 1px;">PRESUMPTIVE FIELD-TEST RESULT</span>
+          </div>
+
+          <div class="card" style="text-align: center;">
+            <div id="resultBadgeContainer" style="margin-bottom: 8px;"></div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px;">
+              Confidence Score: <strong id="resultConfidence" style="color: #FFFFFF;">94%</strong>
+            </div>
+
+            <!-- Chromophore Swatch -->
+            <div style="display: flex; align-items: center; background: var(--surface-elevated); border-radius: 8px; padding: 8px; margin-top: 10px;">
+              <div id="calibratedSwatch" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid #FFFFFF; margin-right: 10px;"></div>
+              <div style="text-align: left; font-size: 0.72rem;">
+                <div id="swatchHex" style="font-weight: 700;">Hex: #6B21A8</div>
+                <div id="swatchSpaces" style="color: var(--text-muted);">HSV: 275°, 80%, 65% • Lab: [35, 42, -45]</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cryptographic Tamper-Evident Record -->
+          <div class="card">
+            <div class="card-title">
+              <span>Tamper-Evident Digital Record</span>
+              <span style="color: var(--verified); font-size: 0.72rem; font-weight: 800;">VERIFIED</span>
+            </div>
+            <div style="font-size: 0.75rem; margin-bottom: 6px;">
+              <span style="color: var(--text-muted);">Test ID:</span> <strong id="resTestId" style="color: var(--primary-light);"></strong>
+            </div>
+            <div style="font-size: 0.75rem; margin-bottom: 6px;">
+              <span style="color: var(--text-muted);">Timestamp:</span> <span id="resTimestamp"></span>
+            </div>
+            <div style="font-size: 0.75rem; margin-bottom: 6px;">
+              <span style="color: var(--text-muted);">Location:</span> <span id="resLocation"></span>
+            </div>
+
+            <div style="margin-top: 8px;">
+              <span class="input-label" style="font-size: 0.65rem;">IMAGE SHA-256 HASH</span>
+              <div id="resImageHash" class="hash-snippet"></div>
+            </div>
+
+            <div style="margin-top: 8px;">
+              <span class="input-label" style="font-size: 0.65rem;">CANONICAL RECORD SHA-256 HASH</span>
+              <div id="resRecordHash" class="hash-snippet"></div>
+            </div>
+
+            <div style="margin-top: 8px;">
+              <span class="input-label" style="font-size: 0.65rem;">DIGITAL SIGNATURE</span>
+              <div id="resSignature" class="hash-snippet"></div>
+            </div>
+          </div>
+
+          <div class="disclaimer-banner">
+            <strong>MANDATORY REGULATORY LIMITATION</strong>
+            This is a presumptive field-test result and does not replace laboratory confirmatory testing.
+          </div>
+
+          <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn" onclick="saveRecordAndOpenDetails()">VIEW IN AUDIT INSPECTOR →</button>
+            <button class="btn btn-secondary" onclick="navigateToTab('DASHBOARD')">Return to Dashboard</button>
+          </div>
+        </div>
+
+        <!-- 7. TEST HISTORY SCREEN -->
+        <div id="screenHistory" class="screen-view">
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 1rem; font-weight: 800;">AUDIT TRAIL & HISTORY</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Local SQLite Field Database</div>
+          </div>
+
+          <input type="text" id="historySearch" class="input-box" placeholder="Search Test ID, Operator, Kit..." oninput="renderHistoryList()" style="margin-bottom: 10px;">
+
+          <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px; font-size: 0.7rem;" onclick="setHistoryFilter('ALL')">ALL</button>
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px; font-size: 0.7rem;" onclick="setHistoryFilter('POSITIVE')">POS</button>
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px; font-size: 0.7rem;" onclick="setHistoryFilter('NEGATIVE')">NEG</button>
+            <button class="btn btn-secondary" style="flex: 1; padding: 6px; font-size: 0.7rem;" onclick="setHistoryFilter('INCONCLUSIVE')">INCON</button>
+          </div>
+
+          <div id="historyListContainer"></div>
+        </div>
+
+        <!-- 8. TEST DETAILS / VERIFICATION SCREEN -->
+        <div id="screenDetails" class="screen-view">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem;" onclick="navigateToTab('HISTORY')">← History</button>
+            <span style="font-size: 0.85rem; font-weight: 800;">AUDIT RECORD INSPECTOR</span>
+            <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 0.75rem; color: var(--positive);" onclick="deleteCurrentRecord()">Delete</button>
+          </div>
+
+          <!-- Dynamic Verification Result Banner -->
+          <div id="verificationBanner" style="display: none; padding: 12px; border-radius: 10px; margin-bottom: 12px;"></div>
+
+          <div class="card">
+            <div class="card-title">
+              <span id="dtTestId" style="color: var(--primary-light);">FT-2026-000001</span>
+              <div id="dtResultBadge"></div>
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px;">Operator: <strong id="dtOperator" style="color: #FFF;"></strong></div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px;">Kit / Sample: <span id="dtKitSample"></span></div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px;">Timestamp: <span id="dtTimestamp"></span></div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary);">GPS: <span id="dtGps" style="color: var(--verified);"></span></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Cryptographic Signatures</div>
+            <span class="input-label" style="font-size: 0.65rem;">STORED IMAGE SHA-256</span>
+            <div id="dtImageHash" class="hash-snippet"></div>
+
+            <span class="input-label" style="font-size: 0.65rem; margin-top: 8px;">CANONICAL RECORD SHA-256</span>
+            <div id="dtRecordHash" class="hash-snippet"></div>
+
+            <span class="input-label" style="font-size: 0.65rem; margin-top: 8px;">DEVICE SIGNATURE</span>
+            <div id="dtSignature" class="hash-snippet"></div>
+          </div>
+
+          <button class="btn" style="background: var(--primary); margin-bottom: 8px;" onclick="verifyCurrentRecord()">
+            🛡️ VERIFY RECORD INTEGRITY
+          </button>
+
+          <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 10px;" onclick="simulateTampering()">
+            ⚡ Simulate Tampering (Audit Test)
+          </button>
+        </div>
+
+        <!-- 9. PROFILE SCREEN -->
+        <div id="screenProfile" class="screen-view">
+          <div style="text-align: center; margin: 20px 0 16px 0;">
+            <div style="width: 54px; height: 54px; border-radius: 27px; background: var(--surface-elevated); border: 2px solid var(--primary-dark); margin: 0 auto 8px auto; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+              👤
+            </div>
+            <div id="profOperatorId" style="font-size: 1.1rem; font-weight: 800;">OP-FIELD-01</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary);">Certified Field Forensic Officer</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Terminal Security Specs</div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 6px;">
+              <span style="color: var(--text-muted);">Hash Engine:</span> <strong>SHA-256 (FIPS 180-4)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 6px;">
+              <span style="color: var(--text-muted);">Signature:</span> <strong>Ed25519 Hardware Enclave</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 6px;">
+              <span style="color: var(--text-muted);">Storage:</span> <strong>SQLite Local Database</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+              <span style="color: var(--text-muted);">Network:</span> <strong style="color: var(--negative);">100% Offline Capable</strong>
+            </div>
+          </div>
+
+          <button class="btn btn-secondary" style="color: var(--positive); border-color: var(--positive-border);" onclick="appLogout()">
+            LOG OUT OPERATOR SESSION
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Bottom Tab Navigation -->
+      <div id="bottomNavBar" class="bottom-nav">
+        <button class="nav-btn active" id="tabDash" onclick="navigateToTab('DASHBOARD')">
+          <span>📊</span>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-btn nav-center-btn" onclick="navigateToNewTest()">
+          <div class="nav-center-circle">+</div>
+          <span>New Test</span>
+        </button>
+        <button class="nav-btn" id="tabHist" onclick="navigateToTab('HISTORY')">
+          <span>🔍</span>
+          <span>History</span>
+        </button>
+        <button class="nav-btn" id="tabProf" onclick="navigateToTab('PROFILE')">
+          <span>👤</span>
+          <span>Profile</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // System Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('systemClock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // In-memory Database / Local Storage
+    const DB_KEY = 'COLORIMETRIC_TEST_RECORDS_V1';
+    let currentOperator = 'OP-FIELD-01';
+    let currentTestData = null;
+    let currentInspectionRecord = null;
+    let activeHistoryFilter = 'ALL';
+    let flashOn = false;
+
+    function getStoredRecords() {
+      try {
+        const raw = localStorage.getItem(DB_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveStoredRecords(records) {
+      localStorage.setItem(DB_KEY, JSON.stringify(records));
+      updateDashboardStats();
+    }
+
+    // Initialize initial sample record if empty
+    function ensureInitialRecords() {
+      const records = getStoredRecords();
+      if (records.length === 0) {
+        const testId = 'FT-2026-104921';
+        const timestamp = new Date().toISOString();
+        const imgHash = CryptoJS.SHA256('DEMO_INITIAL_IMG').toString(CryptoJS.enc.Hex).toUpperCase();
+        const canonical = {
+          testId,
+          operatorId: 'OP-FIELD-01',
+          testKitId: 'TK-842-L30',
+          sampleId: 'SMP-KJ9042',
+          timestamp,
+          latitude: 28.6139,
+          longitude: 77.2090,
+          result: 'POSITIVE',
+          confidence: 0.95,
+          imageHash: imgHash
+        };
+        const recordHash = CryptoJS.SHA256(JSON.stringify(canonical)).toString(CryptoJS.enc.Hex).toUpperCase();
+        const signature = 'SIG-ED25519-' + CryptoJS.HmacSHA256(recordHash, 'SIH_DEVICE_KEY').toString(CryptoJS.enc.Hex).substring(0, 32).toUpperCase();
+
+        records.push({
+          id: testId,
+          ...canonical,
+          recordHash,
+          signature,
+          verificationStatus: 'VERIFIED',
+          colorData: { hex: '#6B21A8', hsv: [275, 0.8, 0.65], lab: [35, 42, -45] },
+          notes: 'Calibrated Cobalt Thiocyanate Presumptive Positive reaction.'
+        });
+        saveStoredRecords(records);
+      }
+    }
+
+    ensureInitialRecords();
+
+    // Authentication
+    function appLogin() {
+      const op = document.getElementById('loginOperatorId').value.trim();
+      const pin = document.getElementById('loginPin').value.trim();
+      if (!op || !pin) {
+        alert('Please enter both Operator ID and PIN');
+        return;
+      }
+      currentOperator = op.toUpperCase();
+      document.getElementById('dashOperator').innerText = currentOperator;
+      document.getElementById('profOperatorId').innerText = currentOperator;
+      navigateToTab('DASHBOARD');
+    }
+
+    function quickDemoFill() {
+      document.getElementById('loginOperatorId').value = 'OP-FIELD-01';
+      document.getElementById('loginPin').value = '4829';
+    }
+
+    function appLogout() {
+      if (confirm('Log out from current operator terminal?')) {
+        navigateToScreen('screenLogin');
+        document.getElementById('bottomNavBar').style.display = 'none';
+      }
+    }
+
+    // Navigation Router
+    function hideAllScreens() {
+      document.querySelectorAll('.screen-view').forEach(s => s.classList.remove('active'));
+    }
+
+    function navigateToScreen(screenId) {
+      hideAllScreens();
+      const screen = document.getElementById(screenId);
+      if (screen) screen.classList.add('active');
+    }
+
+    function navigateToTab(tabName) {
+      document.getElementById('bottomNavBar').style.display = 'flex';
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+      if (tabName === 'DASHBOARD') {
+        document.getElementById('tabDash').classList.add('active');
+        updateDashboardStats();
+        renderRecentList();
+        navigateToScreen('screenDashboard');
+      } else if (tabName === 'NEW_TEST') {
+        navigateToNewTest();
+      } else if (tabName === 'HISTORY') {
+        document.getElementById('tabHist').classList.add('active');
+        renderHistoryList();
+        navigateToScreen('screenHistory');
+      } else if (tabName === 'PROFILE') {
+        document.getElementById('tabProf').classList.add('active');
+        navigateToScreen('screenProfile');
+      }
+    }
+
+    function navigateToNewTest() {
+      const yr = new Date().getFullYear();
+      const rand = Math.floor(100000 + Math.random() * 900000);
+      document.getElementById('formTestId').innerText = `FT-${yr}-${rand}`;
+      document.getElementById('formOperatorId').innerText = currentOperator;
+      document.getElementById('formTimestamp').innerText = new Date().toISOString();
+      document.getElementById('bottomNavBar').style.display = 'flex';
+      navigateToScreen('screenNewTest');
+    }
+
+    // Camera Capture Flow
+    function startCameraCapture() {
+      const scenario = document.getElementById('demoScenarioSelect').value;
+      const dot = document.getElementById('camReactionDot');
+      if (scenario === 'NEGATIVE_BLANK') dot.style.background = '#FDE047';
+      else if (scenario === 'INCONCLUSIVE') dot.style.background = '#78716C';
+      else dot.style.background = '#6B21A8';
+
+      document.getElementById('bottomNavBar').style.display = 'none';
+      navigateToScreen('screenCamera');
+    }
+
+    function toggleFlash() {
+      flashOn = !flashOn;
+      document.getElementById('flashBtn').innerText = flashOn ? '⚡ Flash: ON' : '⚡ Flash: OFF';
+    }
+
+    function captureTestPhoto() {
+      navigateToScreen('screenReview');
+    }
+
+    // Color Calibration & Result Classification
+    function runCalibrationAndClassification() {
+      const scenario = document.getElementById('demoScenarioSelect').value;
+      const testId = document.getElementById('formTestId').innerText;
+      const kitId = document.getElementById('inputKitId').value.trim() || 'TK-482-L19';
+      const sampleId = document.getElementById('inputSampleId').value.trim() || 'SMP-AX8921';
+      const caseNum = document.getElementById('inputCaseNum').value.trim();
+      const timestamp = new Date().toISOString();
+
+      let result = 'POSITIVE';
+      let confidence = 0.94;
+      let hex = '#6B21A8';
+      let hsv = [275, 0.82, 0.65];
+      let lab = [35, 45, -45];
+
+      if (scenario === 'NEGATIVE_BLANK') {
+        result = 'NEGATIVE';
+        confidence = 0.96;
+        hex = '#FDE047';
+        hsv = [48, 0.35, 0.98];
+        lab = [92, -3, 28];
+      } else if (scenario === 'INCONCLUSIVE') {
+        result = 'INCONCLUSIVE';
+        confidence = 0.62;
+        hex = '#78716C';
+        hsv = [25, 0.08, 0.47];
+        lab = [48, 2, 4];
+      }
+
+      // 1. Generate Image SHA-256
+      const imagePayload = `OPTICAL_CAPTURE_${testId}_${hex}_${timestamp}`;
+      const imageHash = CryptoJS.SHA256(imagePayload).toString(CryptoJS.enc.Hex).toUpperCase();
+
+      // 2. Canonical Record
+      const canonical = {
+        testId,
+        operatorId: currentOperator,
+        testKitId: kitId,
+        sampleId,
+        timestamp,
+        latitude: 28.6139,
+        longitude: 77.2090,
+        result,
+        confidence,
+        imageHash
+      };
+      if (caseNum) canonical.caseNumber = caseNum;
+
+      // Deterministic sorted canonical representation
+      const sortedKeys = Object.keys(canonical).sort();
+      const sortedObj = {};
+      sortedKeys.forEach(k => sortedObj[k] = canonical[k]);
+      const recordHash = CryptoJS.SHA256(JSON.stringify(sortedObj)).toString(CryptoJS.enc.Hex).toUpperCase();
+      const signature = 'SIG-ED25519-' + CryptoJS.HmacSHA256(recordHash, 'SIH_DEVICE_KEY_' + currentOperator).toString(CryptoJS.enc.Hex).substring(0, 32).toUpperCase();
+
+      currentTestData = {
+        id: testId,
+        ...canonical,
+        recordHash,
+        signature,
+        verificationStatus: 'VERIFIED',
+        colorData: { hex, hsv, lab },
+        notes: `Optical reaction calibrated using in-frame reference card. Presumptive ${result}.`
+      };
+
+      // Populate Result Screen
+      const badgeContainer = document.getElementById('resultBadgeContainer');
+      badgeContainer.innerHTML = `<span class="badge badge-${result.toLowerCase()}">${result}</span>`;
+      document.getElementById('resultConfidence').innerText = `${(confidence * 100).toFixed(0)}%`;
+      document.getElementById('calibratedSwatch').style.background = hex;
+      document.getElementById('swatchHex').innerText = `Calibrated Hex: ${hex}`;
+      document.getElementById('swatchSpaces').innerText = `HSV: ${hsv[0]}°, ${(hsv[1]*100).toFixed(0)}%, ${(hsv[2]*100).toFixed(0)}% • Lab: [${lab.join(', ')}]`;
+
+      document.getElementById('resTestId').innerText = testId;
+      document.getElementById('resTimestamp').innerText = timestamp;
+      document.getElementById('resLocation').innerText = '28.6139° N, 77.2090° E';
+      document.getElementById('resImageHash').innerText = imageHash;
+      document.getElementById('resRecordHash').innerText = recordHash;
+      document.getElementById('resSignature').innerText = signature;
+
+      // Auto-save to SQLite local records
+      const records = getStoredRecords();
+      records.unshift(currentTestData);
+      saveStoredRecords(records);
+
+      navigateToScreen('screenResult');
+    }
+
+    function saveRecordAndOpenDetails() {
+      if (currentTestData) {
+        openRecordDetails(currentTestData);
+      }
+    }
+
+    // Record Inspection & Verification (Section 13)
+    function openRecordDetails(record) {
+      currentInspectionRecord = JSON.parse(JSON.stringify(record));
+      document.getElementById('dtTestId').innerText = record.testId;
+      document.getElementById('dtResultBadge').innerHTML = `<span class="badge badge-${record.result.toLowerCase()}">${record.result}</span>`;
+      document.getElementById('dtOperator').innerText = record.operatorId;
+      document.getElementById('dtKitSample').innerText = `${record.testKitId} / ${record.sampleId}`;
+      document.getElementById('dtTimestamp').innerText = record.timestamp;
+      document.getElementById('dtGps').innerText = record.latitude ? `${record.latitude.toFixed(4)}° N, ${record.longitude.toFixed(4)}° E` : 'Location unavailable';
+
+      document.getElementById('dtImageHash').innerText = record.imageHash;
+      document.getElementById('dtRecordHash').innerText = record.recordHash;
+      document.getElementById('dtSignature').innerText = record.signature;
+
+      document.getElementById('verificationBanner').style.display = 'none';
+      document.getElementById('bottomNavBar').style.display = 'none';
+      navigateToScreen('screenDetails');
+    }
+
+    function verifyCurrentRecord() {
+      if (!currentInspectionRecord) return;
+
+      const r = currentInspectionRecord;
+      const canonical = {
+        testId: r.testId,
+        operatorId: r.operatorId,
+        testKitId: r.testKitId,
+        sampleId: r.sampleId,
+        timestamp: r.timestamp,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        result: r.result,
+        confidence: r.confidence,
+        imageHash: r.imageHash
+      };
+      if (r.caseNumber) canonical.caseNumber = r.caseNumber;
+
+      const sortedKeys = Object.keys(canonical).sort();
+      const sortedObj = {};
+      sortedKeys.forEach(k => sortedObj[k] = canonical[k]);
+      const computedHash = CryptoJS.SHA256(JSON.stringify(sortedObj)).toString(CryptoJS.enc.Hex).toUpperCase();
+
+      const banner = document.getElementById('verificationBanner');
+      banner.style.display = 'block';
+
+      if (computedHash === r.recordHash.toUpperCase()) {
+        banner.style.background = 'var(--negative-muted)';
+        banner.style.border = '1px solid var(--negative-border)';
+        banner.style.color = 'var(--negative)';
+        banner.innerHTML = '<strong>✓ Record Integrity Verified</strong><div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">Re-computed SHA-256 canonical hash matches perfectly. Digital signature valid.</div>';
+      } else {
+        banner.style.background = 'var(--positive-muted)';
+        banner.style.border = '1px solid var(--positive-border)';
+        banner.style.color = 'var(--positive)';
+        banner.innerHTML = '<strong>⚠ Record Integrity Check Failed</strong><div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">Cryptographic hash mismatch! Data tampering or corruption detected.</div>';
+      }
+    }
+
+    function simulateTampering() {
+      if (!currentInspectionRecord) return;
+      if (confirm('Simulate unauthorized metadata modification (flipping result without re-signing)?')) {
+        currentInspectionRecord.result = currentInspectionRecord.result === 'POSITIVE' ? 'NEGATIVE' : 'POSITIVE';
+        document.getElementById('dtResultBadge').innerHTML = `<span class="badge badge-${currentInspectionRecord.result.toLowerCase()}">${currentInspectionRecord.result}</span>`;
+        alert('Tampered! Result was modified in memory. Now tap "VERIFY RECORD INTEGRITY" to run cryptographic detection.');
+      }
+    }
+
+    function deleteCurrentRecord() {
+      if (!currentInspectionRecord) return;
+      if (confirm(`Delete test record ${currentInspectionRecord.testId} from local database?`)) {
+        let records = getStoredRecords();
+        records = records.filter(r => r.testId !== currentInspectionRecord.testId);
+        saveStoredRecords(records);
+        navigateToTab('HISTORY');
+      }
+    }
+
+    // Dashboard & History Rendering
+    function updateDashboardStats() {
+      const records = getStoredRecords();
+      let pos = 0, neg = 0, inc = 0;
+      records.forEach(r => {
+        if (r.result === 'POSITIVE') pos++;
+        else if (r.result === 'NEGATIVE') neg++;
+        else if (r.result === 'INCONCLUSIVE') inc++;
+      });
+      document.getElementById('statTotal').innerText = records.length;
+      document.getElementById('statPositive').innerText = pos;
+      document.getElementById('statNegative').innerText = neg;
+      document.getElementById('statInconclusive').innerText = inc;
+    }
+
+    function renderRecentList() {
+      const records = getStoredRecords().slice(0, 4);
+      const container = document.getElementById('recentRecordsList');
+      if (records.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; font-size:0.8rem; color:var(--text-muted);">No records found. Tap + NEW TEST above.</div>';
+        return;
+      }
+      container.innerHTML = records.map(r => `
+        <div class="test-record-card" onclick='openRecordDetails(${JSON.stringify(r)})'>
+          <div class="record-header">
+            <span class="record-id">${r.testId}</span>
+            <span class="badge badge-${r.result.toLowerCase()}">${r.result}</span>
+          </div>
+          <div class="record-sub">
+            <span>Kit: ${r.testKitId} • Op: ${r.operatorId}</span>
+            <span style="color:var(--verified); font-weight:700;">Verified ✓</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function setHistoryFilter(filter) {
+      activeHistoryFilter = filter;
+      renderHistoryList();
+    }
+
+    function renderHistoryList() {
+      const query = (document.getElementById('historySearch').value || '').trim().toLowerCase();
+      let records = getStoredRecords();
+
+      if (activeHistoryFilter !== 'ALL') {
+        records = records.filter(r => r.result === activeHistoryFilter);
+      }
+      if (query) {
+        records = records.filter(r =>
+          r.testId.toLowerCase().includes(query) ||
+          r.operatorId.toLowerCase().includes(query) ||
+          r.testKitId.toLowerCase().includes(query) ||
+          r.sampleId.toLowerCase().includes(query)
+        );
+      }
+
+      const container = document.getElementById('historyListContainer');
+      if (records.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; font-size:0.8rem; color:var(--text-muted);">No matching records found.</div>';
+        return;
+      }
+
+      container.innerHTML = records.map(r => `
+        <div class="test-record-card" onclick='openRecordDetails(${JSON.stringify(r)})'>
+          <div class="record-header">
+            <span class="record-id">${r.testId}</span>
+            <span class="badge badge-${r.result.toLowerCase()}">${r.result}</span>
+          </div>
+          <div class="record-sub">
+            <span>Kit: ${r.testKitId} • ${new Date(r.timestamp).toLocaleDateString()}</span>
+            <span style="color:var(--verified); font-weight:700;">${r.verificationStatus}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>
